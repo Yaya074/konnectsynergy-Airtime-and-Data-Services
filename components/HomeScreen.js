@@ -4,16 +4,14 @@ import FontAwesome5 from "react-native-vector-icons/FontAwesome5";
 import Ionicons from "react-native-vector-icons/Ionicons";
 import { AuthContext } from '../navigation/AuthProvider';
 import { WaveIndicator } from 'react-native-indicators';
+import { fetchTransactions } from '../apiServices'; // Import fetchTransactions if needed
 
 const HomeScreen = ({ navigation }) => {
-  const [isBalanceVisible, setIsBalanceVisible] = useState(true);
-  const [loading, setLoading] = useState(false);
+  const { user } = useContext(AuthContext);
   const [refreshing, setRefreshing] = useState(false);
   const [isCopied, setIsCopied] = useState(false);
-
-  const toggleBalanceVisibility = () => {
-    setIsBalanceVisible(!isBalanceVisible);
-  };
+  const [transactions, setTransactions] = useState([]); // State to hold transactions data
+  const [isBalanceVisible, setIsBalanceVisible] = useState(true); // State to toggle balance visibility
 
   const onRefresh = () => {
     setRefreshing(true);
@@ -30,23 +28,33 @@ const HomeScreen = ({ navigation }) => {
     return unsubscribe;
   }, [navigation]);
 
-  const copyToClipboard = () => {
-    Clipboard.setString('9984629082');
+  useEffect(() => {
+    // Fetch transactions data when component mounts or when focused
+    const fetchTransactionsData = async () => {
+      try {
+        const data = await fetchTransactions('', 1, 10); // Fetch transactions (adjust parameters as needed)
+        setTransactions(data);
+      } catch (error) {
+        console.error('Error fetching transactions:', error);
+      }
+    };
+
+    fetchTransactionsData();
+  }, []);
+
+  const toggleBalanceVisibility = () => {
+    setIsBalanceVisible(!isBalanceVisible);
+  };
+
+  const copyToClipboard = (text) => {
+    Clipboard.setString(text);
     setIsCopied(true);
     setTimeout(() => {
       setIsCopied(false);
     }, 2000);
   };
 
-  const transactionHistoryData = [
-    { id: '1', type: 'Data', amount: '10 GB', date: '2024-05-07' },
-    { id: '2', type: 'Airtime', amount: '₦200', date: '2024-05-06' },
-    { id: '3', type: 'Electricity', amount: '₦3000', date: '2024-05-09' },
-    { id: '4', type: 'Airtime', amount: '₦100', date: '2024-05-09' },
-    { id: '5', type: 'Data', amount: '2 GB', date: '2024-06-02' },
-  ];
-
-  const { user, signOut } = useContext(AuthContext);
+  const sterlingAccount = user?.funding_accounts?.find(account => account.bank_name === 'Sterling bank');
 
   return (
     <View style={styles.container}>
@@ -58,37 +66,39 @@ const HomeScreen = ({ navigation }) => {
             <Text style={styles.heading}>Account Details</Text>
             {refreshing && <WaveIndicator color="navy" size={60} style={{ left: 70 }} />}
           </View>
-          <View style={styles.accountDetails}>
-            <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
-              <Text style={styles.accountInfo}>Account Number: </Text>
-              <TouchableOpacity activeOpacity={1} onPress={copyToClipboard}>
-              <Text style={{ fontSize: 16, marginBottom: 5, color: "navy" }}>9984629082</Text>
-              </TouchableOpacity>
-              <TouchableOpacity onPress={copyToClipboard}>
-                <Ionicons name="copy-outline" color="navy" style={{ right: 8, justifyContent: "center" }} size={17} />
-              </TouchableOpacity>
-              <TouchableWithoutFeedback onPress={copyToClipboard} >
-              <Text style={{ fontSize: 16 }}>Sterling bank</Text>
-              </TouchableWithoutFeedback>
+          {sterlingAccount && (
+            <View style={styles.accountDetails}>
+              <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
+                <Text style={styles.accountInfo}>Account Number: </Text>
+                <TouchableOpacity activeOpacity={1} onPress={() => copyToClipboard(sterlingAccount.account_number)}>
+                  <Text style={{ fontSize: 16, marginBottom: 5, color: "navy" }}>{sterlingAccount.account_number}</Text>
+                </TouchableOpacity>
+                <TouchableOpacity onPress={() => copyToClipboard(sterlingAccount.account_number)}>
+                  <Ionicons name="copy-outline" color="navy" style={{ right: 8, justifyContent: "center" }} size={17} />
+                </TouchableOpacity>
+                <TouchableWithoutFeedback onPress={() => copyToClipboard(sterlingAccount.account_number)}>
+                  <Text style={{ fontSize: 16 }}>{sterlingAccount.bank_name}</Text>
+                </TouchableWithoutFeedback>
+              </View>
+              <View style={{ flexDirection: 'row', }}>
+                <Text style={[styles.accountInfo, { fontSize: 20 }]}>
+                  Balance: {user.wallet ? (isBalanceVisible ? `₦${user.wallet.balance ?? '0.00'}` : '₦***.**') : 'Loading...'}
+                </Text>
+                <TouchableOpacity onPress={toggleBalanceVisibility}>
+                  <Ionicons
+                    name={isBalanceVisible ? 'eye-off' : 'eye'}
+                    color="black"
+                    style={{ left: 10 }}
+                    size={21}
+                  />
+                </TouchableOpacity>
+              </View>
+              <View style={{ flexDirection: "row" }}>
+                <Text style={[styles.accountInfo]}>{sterlingAccount.account_name} - </Text>
+                <Text style={[styles.accountInfo, { color: "navy" }]}> 1% charge</Text>
+              </View>
             </View>
-            <View style={{ flexDirection: 'row', }}>
-              <Text style={[styles.accountInfo, { fontSize: 20 }]}>
-                Balance: {isBalanceVisible ? '₦1000.00' : '₦***.**'}
-              </Text>
-              <TouchableOpacity onPress={toggleBalanceVisibility}>
-                <Ionicons
-                  name={isBalanceVisible ? 'eye-off' : 'eye'}
-                  color="black"
-                  style={{ left: 10 }}
-                  size={21}
-                />
-              </TouchableOpacity>
-            </View>
-            <View style={{ flexDirection: "row" }}>
-              <Text style={[styles.accountInfo]}>Konnectsenergy yay - </Text>
-              <Text style={[styles.accountInfo, { color: "navy" }]}> 1% charge</Text>
-            </View>
-          </View>
+          )}
         </ScrollView>
       </View>
       <ScrollView
@@ -142,12 +152,11 @@ const HomeScreen = ({ navigation }) => {
             <Text style={styles.heading}>Transaction History</Text>
             {refreshing && <WaveIndicator color="navy" size={60} style={{ left: 70 }} />}
           </View>
-          {transactionHistoryData.map((item) => (
+          {/* Render transactions fetched from SettingsScreen */}
+          {transactions.map((item) => (
             <View key={item.id} style={styles.transactionItem}>
-              <Text>{item.type}</Text
-
->
-              <Text>{item.amount}</Text>
+              <Text>{item.description}</Text>
+              {/* <Text>₦{item.amount}</Text> */}
               <Text>{item.date}</Text>
             </View>
           ))}

@@ -1,70 +1,50 @@
-import React, { useRef, useState } from 'react';
-import { View, Text, Image, TextInput, TouchableOpacity, StyleSheet, ScrollView, Dimensions } from 'react-native';
+// DataScreen.js
+import React, { useRef, useState, useEffect } from 'react';
+import { View, Text, Image, TouchableOpacity, StyleSheet, ScrollView, Alert, TextInput } from 'react-native';
 import { Modalize } from 'react-native-modalize';
 import Ionicons from "react-native-vector-icons/Ionicons";
+import { buyData } from '../apiServices'; // Import the buyData function
 
-const DataScreen = ({navigation}) => {
+const DataScreen = ({ navigation }) => {
   const modalRef = useRef(null);
-  const pinModalRef = useRef(null);
   const receiptModalRef = useRef(null);
-  
+
   const [selectedNetwork, setSelectedNetwork] = useState('mtn');
   const [phoneNumber, setPhoneNumber] = useState('');
-  const [selectedDataOption, setSelectedDataOption] = useState(null);
+  const [selectedPlan, setSelectedPlan] = useState(null);
   const [error, setError] = useState(null);
-  const [pin, setPin] = useState('');
   const [receiptInfo, setReceiptInfo] = useState(null);
 
-  const dataOptions = {
-    mtn: [
-      { amount: 130.00, plan: '500MB' },
-      { amount: 259.00, plan: '1GB' },
-      { amount: 518.00, plan: '2GB' },
-      { amount: 777.00, plan: '3GB' },
-      { amount: 1295.00, plan: '5GB' },
-      { amount: 2590.00, plan: '10GB' },
-    ],
-    airtel: [
-      { amount: 50.00, plan: '100MB' },
-      { amount: 100.00, plan: '500MB' },
-      { amount: 200.00, plan: '1GB' },
-      { amount: 400.00, plan: '2GB' },
-      { amount: 750.00, plan: '5GB' },
-      { amount: 1500.00, plan: '10GB' },
-    ],
-    glo: [
-      { amount: 100.00, plan: '250MB' },
-      { amount: 200.00, plan: '500MB' },
-      { amount: 400.00, plan: '1GB' },
-      { amount: 750.00, plan: '2GB' },
-      { amount: 1500.00, plan: '4.5GB' },
-      { amount: 2500.00, plan: '7.2GB' },
-    ],
-    etisalat: [
-      { amount: 150.00, plan: '250MB' },
-      { amount: 300.00, plan: '500MB' },
-      { amount: 500.00, plan: '1GB' },
-      { amount: 1000.00, plan: '2GB' },
-      { amount: 1500.00, plan: '3GB' },
-      { amount: 2500.00, plan: '5GB' },
-    ],
+  const getNetworkId = (network) => {
+    switch (network) {
+      case 'mtn':
+        return 1;
+      case 'airtel':
+        return 2;
+      case 'glo':
+        return 3;
+      case 'etisalat':
+        return 4;
+      default:
+        return null;
+    }
   };
 
   const selectNetwork = (network) => {
     setSelectedNetwork(network);
     setPhoneNumber('');
+    setSelectedPlan(null);
     setError(null);
   };
 
-  const openModal = (dataOption) => {
-    if (!phoneNumber) {
-      setError('Please Enter Your Phone Number!');
+  const openModal = () => {
+    if (!phoneNumber || !selectedPlan) {
+      setError('Please Enter Your Phone Number and Select a Plan!');
       setTimeout(() => {
         setError(null);
       }, 2000);
       return;
     }
-    setSelectedDataOption(dataOption);
     if (modalRef.current) {
       modalRef.current.open();
     }
@@ -76,21 +56,31 @@ const DataScreen = ({navigation}) => {
     }
   };
 
-  const handlePinSubmit = () => {
-    setReceiptInfo({
-      amount: selectedDataOption.amount,
-      plan: selectedDataOption.plan,
-      network: selectedNetwork,
-      phoneNumber: phoneNumber,
-      message: 'Successful'
-    });
+  const handleConfirm = async () => {
+    try {
+      if (!selectedPlan) {
+        throw new Error('Please select a data plan.');
+      }
 
-    if (pinModalRef.current) {
-      pinModalRef.current.close();
-    }
+      const planId = selectedPlan.id; // Assuming selectedPlan is an object containing { id, name, price }
 
-    if (receiptModalRef.current) {
-      receiptModalRef.current.open();
+      const response = await buyData(phoneNumber, getNetworkId(selectedNetwork), planId);
+      setReceiptInfo({
+        plan: selectedPlan.name,
+        phoneNumber: phoneNumber,
+        network: selectedNetwork,
+        message: 'Successful',
+      });
+
+      if (modalRef.current) {
+        modalRef.current.close();
+      }
+
+      if (receiptModalRef.current) {
+        receiptModalRef.current.open();
+      }
+    } catch (error) {
+      Alert.alert('Error', `Data purchase failed: ${error.message}`);
     }
   };
 
@@ -100,27 +90,72 @@ const DataScreen = ({navigation}) => {
     }
   };
 
-  const handleBuyPress = () => {
-    if (pinModalRef.current) {
-      if (modalRef.current) {
-        modalRef.current.close();
-      }
-      pinModalRef.current.open();
+  const renderPlanButtons = () => {
+    const plans = getPlansForNetwork(selectedNetwork);
+
+    if (!plans || plans.length === 0) {
+      return null;
     }
+
+    return (
+      <View style={styles.planButtonRow}>
+        {plans.map((plan) => (
+          <TouchableOpacity
+            key={plan.id}
+            style={[styles.planButton, selectedPlan && selectedPlan.id === plan.id && styles.selectedPlanButton]}
+            onPress={() => setSelectedPlan(plan)}
+          >
+            <Text style={styles.planButtonText}>{plan.name}</Text>
+          </TouchableOpacity>
+        ))}
+      </View>
+    );
   };
 
-  const renderDataOptions = () => {
-    return dataOptions[selectedNetwork].map((option, index) => (
-      <TouchableOpacity
-        key={index}
-        style={[styles.dataOption, selectedNetwork === 'mtn' && styles.selectedOption]}
-        onPress={() => openModal(option)}
-      >
-        <Image source={getNetworkLogo(selectedNetwork)} style={styles.networkLogo} />
-        <Text>Plan: {option.plan}</Text>
-        <Text>Amount: {option.amount} Naira</Text>
-      </TouchableOpacity>
-    ));
+  const getPlansForNetwork = (network) => {
+    switch (network) {
+      case 'mtn':
+        return [
+          { id: 1, name: '1 GB', price: 267.00 },
+          { id: 2, name: '2 GB', price: 534.00 },
+          { id: 3, name: '3 GB', price: 801.00 },
+          { id: 4, name: '500 MB', price: 135.00 },
+          { id: 81, name: '5 GB', price: 1335.00 },
+          { id: 82, name: '10 GB', price: 2670.00 },
+        ];
+      case 'airtel':
+        return [
+          { id: 33, name: '1 GB', price: 285.00 },
+          { id: 34, name: '2 GB', price: 570.00 },
+          { id: 35, name: '5 GB', price: 1425.00 },
+          { id: 36, name: '500 MB', price: 145.00 },
+          { id: 84, name: '10 GB', price: 2850.00 },
+          { id: 85, name: '100 MB', price: 85.00 },
+          { id: 86, name: '300 MB', price: 130.00 },
+          { id: 87, name: '15 GB', price: 4275.00 },
+          { id: 88, name: '20 GB', price: 5700.00 },
+        ];
+      case 'glo':
+        return [
+          { id: 53, name: '1 GB', price: 245.00 },
+          { id: 54, name: '2 GB', price: 490.00 },
+          { id: 55, name: '3 GB', price: 735.00 },
+          { id: 56, name: '500 MB', price: 125.00 },
+          { id: 57, name: '5 GB', price: 1225.00 },
+          { id: 58, name: '10 GB', price: 2450.00 },
+          { id: 93, name: '200 MB', price: 70.00 },
+        ];
+      case 'etisalat':
+        return [
+          { id: 73, name: '1 GB', price: 185.00 },
+          { id: 74, name: '2 GB', price: 370.00 },
+          { id: 75, name: '3 GB', price: 555.00 },
+          { id: 76, name: '500 MB', price: 95.00 },
+          { id: 94, name: '4 GB', price: 576.00 },
+        ];
+      default:
+        return [];
+    }
   };
 
   const getNetworkLogo = (network) => {
@@ -154,55 +189,25 @@ const DataScreen = ({navigation}) => {
         keyboardType='decimal-pad'
         onChangeText={setPhoneNumber}
         placeholderTextColor="grey"
-        
       />
-      <Text style={styles.networkTypeText}>{selectedNetwork === 'mtn' ? 'SME' : 'Corporate'}</Text>
       <ScrollView showsVerticalScrollIndicator={false}>
-        <View style={styles.dataOptionsContainer}>
-          {renderDataOptions()}
-        </View>
+        {renderPlanButtons()}
+        <TouchableOpacity style={styles.confirmButton} onPress={openModal}>
+          <Text style={styles.confirmButtonText}>Confirm</Text>
+        </TouchableOpacity>
       </ScrollView>
       <Modalize ref={modalRef} adjustToContentHeight={true} snapPoint={300}>
         <TouchableOpacity onPress={closeModal}>
           <Ionicons name="close" size={30} style={styles.closeIcon} />
         </TouchableOpacity>
-        <Text style={styles.modalTitle}>Purchase Your Data</Text>
-        {selectedDataOption && (
-          <View style={styles.modalContent}>
-            <Text style={styles.modalText}>Phone Number: {phoneNumber}</Text>
-            <Text style={styles.modalText}>Amount: {selectedDataOption.amount} Naira</Text>
-            <Text style={styles.modalText}>Plan: {selectedDataOption.plan}</Text>
-            <Text style={styles.modalText}>Network: {selectedNetwork}</Text>
-            <TouchableOpacity style={styles.buyButton} onPress={handleBuyPress}>
-              <Text style={styles.buyButtonText}>Buy</Text>
-            </TouchableOpacity>
-          </View>
-        )}
-      </Modalize>
-
-      <Modalize ref={pinModalRef} adjustToContentHeight={true} snapPoint={300}>
+        <Text style={styles.modalTitle}>Confirm Purchase</Text>
         <View style={styles.modalContent}>
-          <Text style={styles.modalText}>Enter your 4-digit PIN</Text>
-          <TextInput
-            style={styles.pinInput}
-            value={pin}
-            onChangeText={setPin}
-            maxLength={4}
-            keyboardType="numeric"
-            secureTextEntry={true}
-            placeholder='ENTER PIN'
-          />
-          {pin.length ==4 ? 
-          <TouchableOpacity style={styles.buyButton} onPress={handlePinSubmit}>
-            <Text style={styles.buyButtonText}>Submit</Text> 
-            
+          <Text style={styles.modalText}>Phone Number: {phoneNumber}</Text>
+          <Text style={styles.modalText}>Plan: {selectedPlan ? selectedPlan.name : ''}</Text>
+          <Text style={styles.modalText}>Network: {selectedNetwork}</Text>
+          <TouchableOpacity style={styles.buyButton} onPress={handleConfirm}>
+            <Text style={styles.buyButtonText}>Buy</Text>
           </TouchableOpacity>
-            :
-            <TouchableOpacity activeOpacity={1} style={[styles.buyButton,{backgroundColor:"grey"}]} >
-            <Text style={styles.buyButtonText}>Submit</Text> 
-            
-          </TouchableOpacity>
-            }
         </View>
       </Modalize>
 
@@ -213,27 +218,16 @@ const DataScreen = ({navigation}) => {
         <Text style={styles.modalTitle}>RECEIPT</Text>
         {receiptInfo && (
           <View style={styles.modalContent}>
-            <Text style={styles.modalText}>Amount: {receiptInfo.amount} Naira</Text>
             <Text style={styles.modalText}>Plan: {receiptInfo.plan}</Text>
-            <Text style={styles.modalText}>Network: {receiptInfo.network}</Text>
             <Text style={styles.modalText}>Phone Number: {receiptInfo.phoneNumber}</Text>
+            <Text style={styles.modalText}>Network: {receiptInfo.network}</Text>
             <Text style={styles.modalText}>Purchased: {receiptInfo.message}</Text>
             <TouchableOpacity onPress={closeReceiptModal} style={styles.closeButton}>
-              <Text style={styles.closeButtonText}>Purchase again</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity onPress={()=>navigation.navigate("Home")} style={[styles.closeButton,{backgroundColor:"#dddddd"}]}>
-              <Text style={styles.closeButtonText}>Go to back Dashboard</Text>
+              <Text style={styles.closeButtonText}>Close</Text>
             </TouchableOpacity>
           </View>
         )}
       </Modalize>
-
-      {error && (
-        <View style={styles.errorContainer}>
-          <Text style={styles.errorText}>{error}</Text>
-        </View>
-      )}
     </View>
   );
 };
@@ -241,148 +235,101 @@ const DataScreen = ({navigation}) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
-    padding: 20,
+    backgroundColor: '#fff',
+    paddingHorizontal: 20,
   },
   networkLogos: {
     flexDirection: 'row',
-    justifyContent: 'space-around',
-    marginBottom: 20,
+    justifyContent: 'space-between',
+    marginTop: 20,
   },
   logo: {
-    width: 60,
-    height: 60,
-    borderRadius: 50,
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    borderWidth: 1,
+    borderColor: '#ccc',
   },
   selectedLogo: {
-    borderWidth: 2,
-    borderColor: 'navy',
-    padding: 15,
-    width:90,
-    height:90,
-    
+    borderColor: '#4CAF50',
   },
   phoneNumberInput: {
-    borderBottomWidth: 1,
-    borderColor: 'navy',
-    borderRadius: 5,
-    paddingVertical: 16,
-    paddingHorizontal: 15,
-    marginBottom: 20,
-    backgroundColor:"#F0F0F0",
+    borderWidth: 1,
+    borderColor: '#ccc',
+    padding: 10,
+    marginTop: 20,
   },
-  networkTypeText: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    marginBottom: 10,
-    textAlign: 'center',
-    color: 'navy',
-  },
-  dataOptionsContainer: {
+  planButtonRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    flexWrap: 'wrap',
+    marginTop: 20,
   },
-  dataOption: {
-    borderWidth: 1,
-    borderColor: '#CCCCCC',
-    borderRadius: 10,
+  planButton: {
+    backgroundColor: '#4CAF50',
     padding: 10,
+    borderRadius: 5,
+    width: '45%',
+    alignItems: 'center',
     marginBottom: 10,
-    width: '48%',
-    alignItems: 'center',
   },
-  networkLogo: {
-    width: 30,
-    height: 30,
-    marginBottom: 5,
-    borderRadius: 15,
+  selectedPlanButton: {
+    borderColor: '#4CAF50',
+    borderWidth: 2,
   },
-  selectedOption: {
-    backgroundColor: '#F0F0F0',
-  },
-  purchaseButton: {
-    marginTop: 10,
-    backgroundColor: 'navy',
-    padding: 15,
-    borderRadius: 20,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  purchaseButtonText: {
+  planButtonText: {
     color: 'white',
   },
-  modalContent: {
-    padding: 20,
+  confirmButton: {
+    backgroundColor: '#4CAF50',
+    padding: 15,
+    borderRadius: 5,
+    marginTop: 20,
     alignItems: 'center',
-    backgroundColor: '#FFFFFF',
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
+  },
+  confirmButtonText: {
+    color: 'white',
+    fontWeight: 'bold',
+  },
+  closeIcon: {
+    alignSelf: 'flex-end',
+    marginRight: 10,
+    marginTop: 10,
   },
   modalTitle: {
-    fontSize: 23,
+    fontSize: 20,
     fontWeight: 'bold',
     textAlign: 'center',
-    marginBottom: 10,
+    marginTop: 20,
+  },
+  modalContent: {
+    paddingHorizontal: 20,
+    marginTop: 20,
   },
   modalText: {
+    fontSize: 16,
     marginBottom: 10,
-    fontSize: 18,
-    padding: 4,
-    borderBottomWidth: 1,
-    borderColor: '#cccccc',
-    margin: 5,
   },
   buyButton: {
-    backgroundColor: 'navy',
+    backgroundColor: '#4CAF50',
     padding: 15,
-    borderRadius: 20,
+    borderRadius: 5,
     marginTop: 20,
-    width: 350,
-    justifyContent: 'center',
     alignItems: 'center',
   },
   buyButtonText: {
     color: 'white',
     fontWeight: 'bold',
-    fontSize: 16,
-  },
-  closeIcon: {
-    color: 'black',
-    margin: 2,
-  },
-  pinInput: {
-    borderWidth: 1,
-    borderColor: '#CCCCCC',
-    borderRadius: 5,
-    paddingVertical: 10,
-    paddingHorizontal: 15,
-    marginBottom: 20,
-    textAlign: 'center',
-    width: '80%',
   },
   closeButton: {
-    marginTop: 10,
-    borderWidth: 1,
-    padding: 10,
-    borderRadius: 20,
+    backgroundColor: '#4CAF50',
+    padding: 15,
+    borderRadius: 5,
+    marginTop: 20,
     alignItems: 'center',
-    width: '80%',
   },
   closeButtonText: {
-    color: 'navy',
-    fontSize: 20,
-  },
-  errorContainer: {
-    backgroundColor: 'brown',
-    padding: 20,
-    borderRadius: 10,
-    marginTop: 10,
-  },
-  errorText: {
     color: 'white',
-    fontSize: 20,
-    textAlign: 'center',
+    fontWeight: 'bold',
   },
 });
 

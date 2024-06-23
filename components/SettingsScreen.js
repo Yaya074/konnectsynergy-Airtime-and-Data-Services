@@ -1,60 +1,112 @@
-import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, FlatList, StyleSheet, ActivityIndicator, RefreshControl } from 'react-native';
+import { fetchTransactions } from '../apiServices';
 
 const SettingsScreen = () => {
-  return (
-    <View style={styles.container}>
-      <Text style={styles.heading}>Settings</Text>
-      <View style={styles.section}>
-        <Text style={styles.sectionHeading}>Developer Information</Text>
-        <View style={styles.developerInfoContainer}>
-          <Text style={styles.developerInfoLabel}>Developer:</Text>
-          <Text style={styles.developerInfoText}>Khalil Mu'azu</Text>
-        </View>
-        <View style={styles.developerInfoContainer}>
-          <Text style={styles.developerInfoLabel}>Contact:</Text>
-          <Text style={styles.developerInfoText}>developer@example.com</Text>
-        </View>
-        <View style={styles.developerInfoContainer}>
-          <Text style={styles.developerInfoLabel}>Version:</Text>
-          <Text style={styles.developerInfoText}>1.0.0</Text>
-        </View>
+  const [transactions, setTransactions] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [page, setPage] = useState(1);
+  const [refreshing, setRefreshing] = useState(false);
+  const [hasMore, setHasMore] = useState(true); // To track if there are more pages to fetch
+
+  const loadTransactions = async () => {
+    try {
+      const data = await fetchTransactions('', page, 10);
+      if (page === 1) {
+        setTransactions(data); // If it's the first page, replace transactions
+      } else {
+        setTransactions((prevTransactions) => [...prevTransactions, ...data]); // Append transactions for subsequent pages
+      }
+      setHasMore(data.length === 10); // Assuming pageSize is 10, check if there are more transactions to fetch
+    } catch (error) {
+      setError(error.message || 'Something went wrong');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadTransactions();
+  }, [page]); // Load transactions when page changes
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    try {
+      setPage(1); // Reset page to 1 to fetch fresh data
+    } catch (error) {
+      console.error(error);
+    } finally {
+      setRefreshing(false);
+    }
+  };
+
+  const handleLoadMore = () => {
+    if (!loading && hasMore) {
+      setPage((prevPage) => prevPage + 1); // Load next page if there are more transactions to fetch
+    }
+  };
+
+  if (loading && !refreshing && page === 1) {
+    return (
+      <View style={styles.loader}>
+        <ActivityIndicator size="large" color="#00B7DD" />
       </View>
-    </View>
+    );
+  }
+
+  if (error) {
+    return (
+      <View style={styles.errorContainer}>
+        <Text style={styles.errorText}>{error}</Text>
+      </View>
+    );
+  }
+
+  return (
+    <FlatList
+      contentContainerStyle={styles.container}
+      data={transactions}
+      keyExtractor={(item) => item.id.toString()}
+      renderItem={({ item }) => (
+        <View style={styles.transactionItem}>
+          <Text>{item.description}</Text>
+          <Text>{item.amount}</Text>
+        </View>
+      )}
+      refreshControl={
+        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+      }
+      ListEmptyComponent={<Text>No transactions found</Text>}
+      onEndReached={handleLoadMore}
+      onEndReachedThreshold={0.5}
+    />
   );
 };
 
 const styles = StyleSheet.create({
-  container: {
+  loader: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  errorContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  errorText: {
+    color: 'red',
+  },
+  container: {
     padding: 20,
   },
-  heading: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    marginBottom: 20,
-  },
-  section: {
-    marginBottom: 20,
-  },
-  sectionHeading: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    marginBottom: 10,
-  },
-  developerInfoContainer: {
+  transactionItem: {
     flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 5,
-  },
-  developerInfoLabel: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    marginRight: 10,
-  },
-  developerInfoText: {
-    fontSize: 16,
+    justifyContent: 'space-between',
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: '#CCCCCC',
   },
 });
 

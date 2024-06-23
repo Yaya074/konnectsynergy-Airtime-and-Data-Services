@@ -1,7 +1,8 @@
 import React, { useRef, useState } from 'react';
-import { View, Text, Image, TextInput, TouchableOpacity, StyleSheet, ScrollView } from 'react-native';
+import { View, Text, Image, TextInput, TouchableOpacity, StyleSheet, ScrollView, Alert } from 'react-native';
 import { Modalize } from 'react-native-modalize';
 import Ionicons from "react-native-vector-icons/Ionicons";
+import { buyAirtime } from '../apiServices'; // Import the buyAirtime function
 
 const AirtimeScreen = ({navigation}) => {
   const modalRef = useRef(null);
@@ -29,7 +30,21 @@ const AirtimeScreen = ({navigation}) => {
         return null;
     }
   };
-  
+
+  const getNetworkId = (network) => {
+    switch (network) {
+      case 'mtn':
+        return 1;
+      case 'airtel':
+        return 2;
+      case 'glo':
+        return 3;
+      case 'etisalat':
+        return 4;
+      default:
+        return null;
+    }
+  };
 
   const selectNetwork = (network) => {
     setSelectedNetwork(network);
@@ -65,20 +80,25 @@ const AirtimeScreen = ({navigation}) => {
     }
   };
 
-  const handlePinSubmit = () => {
-    setReceiptInfo({
-      amount: selectedAmount,
-      phoneNumber: phoneNumber,
-      network: selectedNetwork,
-      message: 'Successful'
-    });
+  const handlePinSubmit = async () => {
+    try {
+      const response = await buyAirtime(phoneNumber, getNetworkId(selectedNetwork), selectedAmount);
+      setReceiptInfo({
+        amount: selectedAmount,
+        phoneNumber: phoneNumber,
+        network: selectedNetwork,
+        message: 'Successful',
+      });
 
-    if (pinModalRef.current) {
-      pinModalRef.current.close();
-    }
+      if (pinModalRef.current) {
+        pinModalRef.current.close();
+      }
 
-    if (receiptModalRef.current) {
-      receiptModalRef.current.open();
+      if (receiptModalRef.current) {
+        receiptModalRef.current.open();
+      }
+    } catch (error) {
+      Alert.alert('Error', `Airtime purchase failed: ${error.message}`);
     }
   };
 
@@ -127,9 +147,7 @@ const AirtimeScreen = ({navigation}) => {
         onChangeText={setPhoneNumber}
         placeholderTextColor="grey"
       />
-     
-        {renderAmountButtons()}
-    
+      {renderAmountButtons()}
       <TextInput
         style={styles.amountInput}
         placeholder="Enter amount"

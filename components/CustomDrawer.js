@@ -20,6 +20,15 @@ import {
   const CustomDrawer = ( props,{  navigation }) => {
     const { user, logout } = useContext(AuthContext);
     
+
+    const handleLogout = async () => {
+      try {
+        await logout();
+      } catch (error) {
+        console.error('Logout error', error);
+      }
+    };
+  
   
     return (
       <View style={{ flex: 1 }}>
@@ -37,7 +46,7 @@ import {
               </View>
               <View style={{backgroundColor:"#F5F5F5", borderColor:"navy", borderWidth:0.3,
                padding:4, top:5, borderRadius:6, width:200, justifyContent:"center",alignItems:"center"}}>
-              <Text style={{color:"navy", fontSize:18}}>{user.email}</Text>
+              <Text style={{color:"navy", fontSize:18}}>{user?.name}</Text>
               <Text style={{color:"navy", fontSize:12}}>Wallet: ₦1000.00</Text>
               </View>
               <TouchableOpacity
@@ -169,7 +178,7 @@ import {
               </TouchableOpacity>
   
               <TouchableOpacity
-                // onPress={() => props.navigation.navigate("About us")}
+                onPress={() => props.navigation.navigate("Fund")}
                 style={{ paddingVertical: 15 }}>
                 <View style={{ flexDirection: "row", alignItems: "center" }}>
                   <Ionicons
@@ -185,7 +194,7 @@ import {
                       fontWeight: "bold",
                       
                     }}>
-                    Channels
+                    Funding Accouns
                   </Text>
                 </View>
               </TouchableOpacity>
@@ -289,8 +298,8 @@ import {
             style={{ paddingVertical: 15 }}>
             <View style={{ flexDirection: "row", alignItems: "center" }}>
               <Ionicons
-                name="share-social-outline"
-                size={22}
+                name="return-up-forward-outline"
+                size={20}
                 style={{ color: 'navy'  }}
               />
               <Text
@@ -307,7 +316,7 @@ import {
   
           <TouchableOpacity
           activeOpacity={0.7}
-            onPress={() => logout()}
+            onPress={handleLogout}
             style={{ paddingVertical: 15,width:100 }}>
             <View style={{ flexDirection: "row", alignItems: "center",
             backgroundColor:"navy",padding:10,borderRadius:60,marginRight:170,width:100 }}>

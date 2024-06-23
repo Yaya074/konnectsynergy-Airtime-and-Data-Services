@@ -16,20 +16,28 @@ import { createDrawerNavigator } from '@react-navigation/drawer'
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs'
 import CustomDrawer from '../components/CustomDrawer'
 import Ionicons from "react-native-vector-icons/Ionicons";
+import LoginScreen from '../components/LoginScreen'
+import RegisterScreen from '../components/RegisterScreen'
+import ForgotPasswordScreen from '../components/ForgotPasswordScreen'
+import { StatusBar } from 'expo-status-bar'
+import FundingAccounts from '../components/FundingAccounts'
+
 
 
 const stack = createNativeStackNavigator();
 const drawer = createDrawerNavigator();
 const Tab = createBottomTabNavigator;
 
-const HomeStack = ({navigation}) => {
+ const HomeStack = ({navigation}) => {
   const {user, signOut} = useContext(AuthContext);
 
   return (
+    <>
+    <StatusBar style='dark' />
     <stack.Navigator 
        
          >
-        <stack.Screen options={{ title:`Hello! ${user.email[0]}${user.email[1]}${user.email[2]}${user.email[3]}${user.email[4]}` ,   headerRight:()=>(
+        <stack.Screen options={{ title:`Hello! ${user?.name}`,   headerRight:()=>(
       <TouchableOpacity style={{right:15}} onPress={()=>{}}>
         {/* <Text style={{color:"navy", right:10}}>Sign Out</Text> */}
         <Ionicons
@@ -54,6 +62,9 @@ const HomeStack = ({navigation}) => {
      
      
      }}  name='Home' component={HomeScreen} />
+     <stack.Screen  name='Login' component={LoginScreen} />
+            <stack.Screen  name='Register' component={RegisterScreen} />
+            <stack.Screen name='ForgotPassword' component={ForgotPasswordScreen} />
         <stack.Screen name='Equipments' options={{title:"Add Equipment"}} component={AddEquipmentsScreen} />
         <stack.Screen name='Store' 
         options={{title:"Store Equipment",headerSearchBarOptions:{placeholder:"Search", headerIconColor:"white", hintTextColor:"white", textColor:"white"},headerTintColor:"white"}} component={StoreScreen} />
@@ -63,11 +74,11 @@ const HomeStack = ({navigation}) => {
         <stack.Screen name='Cable' component={CableTvScreen} />
         <stack.Screen name='Electricity' component={ElectricityScreen} />
         <stack.Screen name='Settings' component={SettingsScreen} />
+        <stack.Screen name='Fund' component={FundingAccounts} />
         </stack.Navigator>
-        
+        </>  
   )
 }
-
 
 
 
@@ -75,11 +86,12 @@ const HomeStack = ({navigation}) => {
 const AppStack = ({props}) => {
   const {user, signOut} = useContext(AuthContext);
   return (
-   
+   <>
+   <StatusBar style='dark' />
       <drawer.Navigator screenOptions={{headerShown:false}}  drawerContent={(props) => <CustomDrawer {...props} />}>
         <drawer.Screen  name='HomeStack' component={HomeStack} />
       </drawer.Navigator>  
-   
+      </>
   )
 }
 

@@ -1,55 +1,126 @@
-import { StyleSheet, Text, View, TextInput, Button, TouchableOpacity } from 'react-native'
-import React, { useContext, useState } from 'react'
-import { AuthContext } from '../navigation/AuthProvider'
+import React, { useState, useContext } from 'react';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, Button } from 'react-native';
+import Ionicons from 'react-native-vector-icons/Ionicons';
+import { AuthContext } from '../navigation/AuthProvider';
 
-const LoginScreen = ({navigation}) => {
-  const [email, setEmail] = useState("")
-  const [password, setPassword] = useState("")
+const LoginScreen = ({ navigation }) => {
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [secureTextEntry, setSecureTextEntry] = useState(true);
+  const [error, setError] = useState(null);
+  const { login } = useContext(AuthContext);
 
-  const {signIn} = useContext(AuthContext);
+  const handleLogin = async () => {
+    try {
+      await login(email, password);
+    } catch (error) {
+      setError(error.message);
+    }
+  };
+
+  const togglePasswordVisibility = () => {
+    setSecureTextEntry(!secureTextEntry);
+  };
 
   return (
     <View style={styles.container}>
-      <Text>Login to Khalil Mu'azu Data and airtime prototype</Text>
-      <View style={styles.inputContainer}>
-        <TextInput Value={email} onChangeText={(text)=>setEmail(text)} style={styles.input} placeholder="Email" />
-        <TextInput  Value={password} onChangeText={(text)=>setPassword(text)}  style={styles.input} placeholder="Password" />
-        <Button onPress={()=>signIn(email, password)} title="Login" />
-      </View>
-      <TouchableOpacity style={{marginTop:10,marginRight:220}} onPress={()=>navigation.navigate("ForgotPassword")}>
-          <Text>Forgot password? </Text>
+      <Text style={styles.headerText}>Konnectsynergy</Text>
+      <TextInput
+        placeholder="Email"
+        value={email}
+        onChangeText={setEmail}
+        style={styles.input}
+        keyboardType="email-address"
+      />
+      <View style={styles.passwordContainer}>
+        <TextInput
+          placeholder="Password"
+          value={password}
+          onChangeText={setPassword}
+          style={styles.passwordInput}
+          secureTextEntry={secureTextEntry}
+        />
+        <TouchableOpacity onPress={togglePasswordVisibility}>
+          <Ionicons
+            name={secureTextEntry ? 'eye-off' : 'eye'}
+            size={24}
+            color="grey"
+          />
         </TouchableOpacity>
+      </View>
+      {error && <Text style={styles.error}>{error}</Text>}
+      <TouchableOpacity onPress={handleLogin} style={styles.button}>
+        <Text style={styles.buttonText}>Login</Text>
+      </TouchableOpacity>
+      <View style={{flexDirection:"row",justifyContent:"center"}}>
+      <Text style={{fontSize:18, color:"navy", marginRight:10}} >Don't have an account?</Text>
+      <TouchableOpacity  onPress={() => navigation.navigate('Register')}>
+        <Text style={{fontSize:18, color:"navy", fontWeight:"500"}}>Register</Text>
+        </TouchableOpacity>
+      </View>
+      <View style={{width:160,}}>
+              <TouchableOpacity  onPress={() => navigation.navigate('ForgotPassword')}>
+        <Text style={{fontSize:18, color:"navy", fontWeight:"500", marginTop:10}}>Forgot Password?</Text>
+        </TouchableOpacity>
+        </View>
 
       
-      <View style={{marginTop:10, flexDirection:"row"}}>
-      <Text>Don't have an account? </Text>
-        <TouchableOpacity onPress={()=>navigation.navigate("Register")}>
-          <Text>Register </Text>
-        </TouchableOpacity>
-      </View>
     </View>
-  )
-}
-
-export default LoginScreen
+  );
+};
 
 const styles = StyleSheet.create({
-  container:{
-    flex:1,
-    justifyContent:"center",
-    alignItems:"center"
+  container: {
+    flex: 1,
+    padding: 20,
+    backgroundColor: '#f9f9f9',
+    justifyContent: 'center',
   },
-  inputContainer:{
-    justifyContent:"center",
-    alignItems:"center",
-    width:100,
+  headerText: {
+    fontSize: 24,
+    marginBottom: 20,
+    textAlign: 'center',
+    color: 'navy',
+    position:"absolute",
+    top:0
   },
-  input:{
-    padding:10,
-    width:300,
-    borderWidth:1,
-    margin:8,
-    borderRadius:20,
-    borderColor:"#ccc"
-  }
-})
+  input: {
+    borderWidth: 1,
+    borderColor: '#ddd',
+    padding: 10,
+    marginBottom: 10,
+    borderRadius: 5,
+    backgroundColor: '#fff',
+  },
+  passwordContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#ddd',
+    padding: 10,
+    marginBottom: 10,
+    borderRadius: 5,
+    backgroundColor: '#fff',
+  },
+  passwordInput: {
+    flex: 1,
+  },
+  button: {
+    backgroundColor: 'navy',
+    padding: 15,
+    borderRadius: 5,
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  buttonText: {
+    color: '#fff',
+    fontWeight: 'bold',
+  },
+  error: {
+    color: 'red',
+    marginBottom: 10,
+    textAlign: 'center',
+  },
+});
+
+export default LoginScreen;
